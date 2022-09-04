@@ -9,19 +9,22 @@
     <style>
         body {
             background: linear-gradient(90deg, #FC466B 0%, #3F5EFB) no-repeat;
-            background-size: contain;
+            background-size: cover;
             overflow: scroll;
-
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            
         }
-
         .container {
             display: flex;
             justify-content: center;
             align-items: center;
             margin-top: 50px;
-
+            width: 100%;
+            height: 100%;
+            padding-bottom: 450px;
         }
-
         .login {
             padding-left: 20px;
             padding-right: 20px;
@@ -30,28 +33,22 @@
             margin-right: 0px;
             border-radius: 3%;
             background-color: #cec5c5;
-
         }
-
         form {
             font-family: Cambria, Cochin, Georgia, Times, 'Times New Roman', serif;
             opacity: 1;
         }
-
         form h2 {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             text-align: center;
             padding-top: 25px;
         }
-
         .container p {
             position: relative;
             transform: translate(-50%, -50%);
             left: 50%;
             justify-content: center;
-
         }
-
         input[type=text],
         select {
             width: 100%;
@@ -62,8 +59,7 @@
             border-radius: 4px;
             box-sizing: border-box;
         }
-
-        input[type=submit] {
+        button {
             width: 100%;
             background-color: #4CAF50;
             color: white;
@@ -73,11 +69,9 @@
             border-radius: 4px;
             cursor: pointer;
         }
-
-        input[type=submit]:hover {
+        button:hover {
             background-color: #45a049;
         }
-
         .map {
             display: block;
             background-color: #ece6e6;
@@ -85,158 +79,36 @@
             border-radius: 25px;
             width: 705px;
             height: 800px;
-
-
         }
-
         .map h2 {
 
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             text-align: center;
-
         }
-
         #canvas {
             margin-left: auto;
             margin-right: auto;
         }
     </style>
-
 </head>
-
 <body>
-
     <!-- Display Form -->
     <div class="container">
         <div class="login">
             <form action="/get" id="Fpage">
                 <h2>Welcome To Indoor Navigation System</h2>
                 <label for="uuid">Enter Your UUID :</label>
-                <input id="uuid" type="text" placeholder="UUID...">
+                <input id="uuid" type="text" placeholder="UUID..." name="input1">
                 <label for="locations">Choose a Loaction:</label>
-                <select name="location" id="locations" form="Fpage">
+                <select name="location" id="locations" form="Fpage" name="input2">
                     <option value="D1">Door 1</option>
                     <option value="D2">Door 2</option>
                     <option value="entrance">Entrance</option>
                     <option value="exit">Exit</option>
                 </select>
-                <input type="submit" value="Submit">
-
+                <button type="submit">Submit</button>
             </form>
-
         </div>
     </div>
-
-    <div class="container">
-        <!-- Display Map -->
-        <div class="map">
-            <h2>Map Of the hall area 1</h2>
-            <canvas id="Canvas" width="700" height="700"></canvas>
-        </div>
-    </div>
-
-    
-
-
-
-
 </body>
-
 </html>
-
-<script>
-
-    var canvas = document.getElementById('Canvas');
-    var context = canvas.getContext("2d");
-    context.font = "15px Segoe UI";
-    context.fillText("hi", 547, 68);
-
-
-    // Map sprite
-    var mapSprite = new Image();
-    mapSprite.src = "map.jpg";
-    
-
-    var Marker = function () {
-        this.Sprite = new Image();
-        this.Sprite.src = "https://img.icons8.com/fluency/48/000000/location-update.png"
-        this.Width = 20;
-        this.Height = 20;
-        this.XPos = 0;
-        this.YPos = 0;
-    }
-
-    var Markers = new Array();
-
-    var mouseClicked = function (mouse) {
-        // Get corrent mouse coords
-        var rect = canvas.getBoundingClientRect();
-        var mouseXPos = (mouse.x - rect.left);
-        var mouseYPos = (mouse.y - rect.top);
-
-        console.log("Marker added");
-
-        // Move the marker when placed to a better location
-        var marker = new Marker();
-        marker.XPos = mouseXPos - (marker.Width / 2);
-        marker.YPos = mouseYPos - marker.Height;
-
-        Markers.push(marker);
-    }
-
-    // Add mouse click event listener to canvas
-    canvas.addEventListener("mousedown", mouseClicked, false);
-
-    var firstLoad = function () {
-        context.font = "15px Segoe UI";
-        context.textAlign = "center";
-
-
-    }
-
-    firstLoad();
-
-    var main = function () {
-        draw();
-    };
-
-    var draw = function () {
-        // Clear Canvas
-        context.fillStyle = "#000";
-        context.fillRect(0, 0, canvas.width, canvas.height);
-
-        // Draw map
-        // Sprite, X location, Y location, Image width, Image height
-        // You can leave the image height and width off, if you do it will draw the image at default size
-        context.drawImage(mapSprite, 0, 0, 700, 700);
-
-        // Draw markers
-        for (var i = 0; i < Markers.length; i++) {
-            var tempMarker = Markers[i];
-            // Draw marker
-            context.drawImage(tempMarker.Sprite, tempMarker.XPos, tempMarker.YPos, tempMarker.Width, tempMarker.Height);
-
-            // Calculate postion text
-            var markerText = "Postion (X:" + tempMarker.XPos + ", Y:" + tempMarker.YPos;
-
-            // Draw a simple box so you can see the position
-            var textMeasurements = context.measureText(markerText);
-            context.fillStyle = "#666";
-            context.globalAlpha = 0.5;
-            context.fillRect(tempMarker.XPos - (textMeasurements.width / 2), tempMarker.YPos - 15, textMeasurements.width, 20);
-            context.globalAlpha = 1;
-
-            // Draw position above
-            context.fillStyle = "#000";
-            context.fillText(markerText, tempMarker.XPos, tempMarker.YPos);
-
-
-        }
-    };
-
-
-
-    setInterval(main, (1000 / 20)); // Refresh 60 times a second
-
-    
-</script>
