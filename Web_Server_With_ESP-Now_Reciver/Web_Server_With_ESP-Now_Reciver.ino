@@ -1,3 +1,48 @@
+#include <esp_now.h>
+#include <WiFi.h>
+#include "ESPAsyncWebServer.h"
+#include <ArduinoJson.h>
+#include <AsyncTCP.h>
+#include <Arduino.h>
+
+String jsonData;
+StaticJsonDocument<256> doc;
+// Json Variable to Hold Sensor Readings
+String serverData;
+StaticJsonDocument<256> rowData;
+
+String UUID;
+int devID;
+int device;
+int rssi;
+
+int prvRssi = -60;
+int prvDevID;
+char prvMacStr[18];
+
+int locationCode;
+
+int LED_BUILTIN = 2;
+
+//Main WiFi network credentials (STATION)
+const char* ssid = "NCV_FIBER";
+const char* password = "n4jq6ule3sz";
+
+//Web UI data Passign
+const char* PARAM_INPUT_1 = "input1";
+const char* PARAM_INPUT_2 = "input2";
+
+String UserUUID;
+int UserDesti;
+int UserRssi;
+
+AsyncWebServer server(80);
+AsyncEventSource events("/events");
+
+
+
+//HTML Code,  Web UI code.
+const char index_html[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
 <html lang="en">
 
@@ -262,23 +307,186 @@
             var obj = JSON.parse(e.data);
             var livelocation = obj.CurrLocation;
             var signalSTR = obj.Rssi;
-
             window.livelocation = livelocation;
             window.signalSTR = signalSTR;
-            console.log(livelocation);
-            console.log(signalSTR);
+            //console.log(livelocation);
+            //console.log(signalSTR);
         }, false);
             
     }
-
     var main = function () {
+            //console.log("main");
+            //console.log(livelocation);
+            //console.log(signalSTR);
         draw(livelocation, signalSTR);
 
     };
 
     // Refresh 60 times a second
-    setInterval(main, (1000 / 100));
+    setInterval(main, (1000)/500);
 
 
 
 </script>
+)rawliteral";
+
+
+void ledBlink(int timeDelay) {
+  digitalWrite(LED_BUILTIN, HIGH);
+  delay(timeDelay);
+  digitalWrite(LED_BUILTIN, LOW);
+  delay(timeDelay);
+}
+
+
+
+
+
+
+// callback function that will be executed when data is received
+void OnDataRecv(const uint8_t * mac_addr, const uint8_t *incomingData, int len) {
+  ledBlink(5);
+  char macStr[18];
+  Serial.print("Packet received from: ");
+  snprintf(macStr, sizeof(macStr), "%02x:%02x:%02x:%02x:%02x:%02x",
+           mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
+  Serial.println(macStr);
+  char* buff = (char*) incomingData;
+  jsonData = String(buff);
+  Serial.print("Recieved");
+  Serial.println(jsonData);
+  DeserializationError error = deserializeJson(doc, jsonData);
+  String UUID = doc["uuid"];
+  int devID = doc["pointer"];
+  int rssi = doc["rssi"];
+  Serial.print("Device no: ");
+  Serial.println(devID);
+  Serial.print("UUID: ");
+  Serial.println(UUID);
+  Serial.print("RSSI Value: ");
+  Serial.println(rssi);
+  Serial.println();
+
+//Select closest BLE Scanner and select its data
+if(UUID == UserUUID){
+  if(prvMacStr == macStr){
+    //data recive from same device
+    UserDesti = devID;
+    UserRssi = rssi;
+  }else if(prvMacStr != macStr){
+    if(prvRssi >= rssi){
+      Serial.printf(" if 1 Closest pointer is :%d", devID);
+      UserDesti = prvDevID;
+      UserRssi = prvRssi;
+    }else{
+      Serial.printf("if 2 Closest pointer is :%d", prvDevID);
+      UserDesti = devID;
+      UserRssi = rssi;
+    }
+    ledBlink(15);
+    Serial.println("");
+    Serial.println("before convert");
+    Serial.println(prvRssi);
+    Serial.println(prvDevID);
+    prvMacStr[18] = macStr[18];
+    prvRssi = rssi;
+    prvDevID = devID;
+    Serial.println("after convert");
+    Serial.println(prvRssi);
+    Serial.println(prvDevID);
+    jsonData.clear();
+    }
+  }
+}
+
+//Data sending to users UI for calculations, server events.
+String sendData(){
+  rowData["CurrLocation"] = UserDesti;
+  rowData["Rssi"] = UserRssi;
+  serializeJson(rowData, serverData);
+  Serial.println(serverData);
+  return serverData;
+}
+
+void setup() {
+  //Initialize Serial Monitor
+  Serial.begin(115200);
+
+  pinMode(LED_BUILTIN, OUTPUT);
+
+  // Set the device as a Station and Soft Access Point simultaneously
+  WiFi.mode(WIFI_AP_STA);
+
+  // Set device as a Wi-Fi Station
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(1000);
+    Serial.println("Setting as a Wi-Fi Station..");
+    ledBlink(20);
+  }
+  Serial.print("Station IP Address: ");
+  Serial.println(WiFi.localIP());
+  Serial.print("Wi-Fi Channel: ");
+  Serial.println(WiFi.channel());
+
+
+  //Init ESP-NOW
+  if (esp_now_init() != ESP_OK) {
+    Serial.println("Error initializing ESP-NOW");
+    return;
+  }
+
+  // Once ESPNow is successfully Init, we will register for recv CB to
+  // get recv packer info
+  esp_now_register_recv_cb(OnDataRecv);
+
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest * request) {
+    request->send_P(200, "text/html", index_html);
+  });
+
+  // Send a GET request to <ESP_IP>/get?input1=<inputMessage>&state=<inputMessage2>
+  server.on("/get", HTTP_GET, [] (AsyncWebServerRequest * request) {
+    String inputMessage1;
+    String inputMessage2;
+    // GET input1 value on <ESP_IP>/get?input1=<inputMessage>
+    if (request->hasParam(PARAM_INPUT_1) && request->hasParam(PARAM_INPUT_2)) {
+      inputMessage1 = request->getParam(PARAM_INPUT_1)->value();
+      inputMessage2 = request->getParam(PARAM_INPUT_2)->value();
+    }
+    else {
+      inputMessage1 = "No Data added";
+      inputMessage2 = "No Location added";
+    }
+    Serial.println(inputMessage1);
+    Serial.println(inputMessage2);
+    UserUUID = inputMessage1;
+
+    
+    request->send(200, "text/plain", "OK");
+  });
+  
+
+  events.onConnect([](AsyncEventSourceClient * client) {
+    if (client->lastId()) {
+      Serial.printf("Client reconnected! Last message ID that it got is: %u\n", client->lastId());
+    }
+    // send event with message "hello!", id current millis
+    // and set reconnect delay to 1 second
+    client->send("hello!", NULL, millis(), 10000);
+  });
+  server.addHandler(&events);
+  server.begin();
+
+
+}
+
+void loop() {
+  static unsigned long lastEventTime = millis();
+  static const unsigned long EVENT_INTERVAL_MS = 50;
+  if ((millis() - lastEventTime) > EVENT_INTERVAL_MS) {
+    events.send(sendData().c_str(),"beacon_data",millis());
+    serverData.clear();
+    lastEventTime = millis();
+  }
+
+}

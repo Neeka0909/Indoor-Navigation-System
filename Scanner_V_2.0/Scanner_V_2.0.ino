@@ -143,7 +143,7 @@ void BleScan() {
         BleRssi[i] = RSSI_data;
         Count = i + 1;
         Serial.println();
-        delay(100);
+        delay(50);
 
 
       }
@@ -157,7 +157,7 @@ void BleScan() {
 }
 
 void DataSending() {
-  doc["pointer"] = 5;
+  doc["pointer"] = 2;
 
   for (byte i = 0; i < Count; i = i + 1) {
     if (deviceCount == 0) {
