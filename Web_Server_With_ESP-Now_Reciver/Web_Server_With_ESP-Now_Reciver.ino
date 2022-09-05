@@ -232,10 +232,14 @@ const char index_html[] PROGMEM = R"rawliteral(
         context.fillStyle = "#000";
 
         context.drawImage(mapSprite, 120, 40, mapSprite.width, mapSprite.height);
-        
+
         var input2 = document.forms["Bledata"]["input2"].value;
+        var input1 = document.forms["Bledata"]["input1"].value;
         destinationMark(input2);
-        locationMarker(data1, data2);
+        if (input1 != "") {
+            locationMarker(data1, data2);
+        }
+        
     };
 
     var destinationMark = function (end) {
@@ -273,16 +277,18 @@ const char index_html[] PROGMEM = R"rawliteral(
         }
     }
 
-    var formSubmit = function () {
+      var formSubmit = function () {
         let input1 = document.forms["Bledata"]["input1"].value;
         let input2 = document.forms["Bledata"]["input2"].value;
         console.log(input1);
         console.log(input2);
+        if (input1 != " ") {
+            var xhr = new XMLHttpRequest();
+            xhr.open("GET", "/get?input1=" + input1 + "&input2=" + input2, true);
+            xhr.send();
+            console.log("Data send to web server");
+        }
 
-        var xhr = new XMLHttpRequest();
-        xhr.open("GET", "/get?input1=" + input1 + "&input2=" + input2, true);
-        xhr.send();
-        console.log("Data send to web server");
     };
 
 
@@ -384,16 +390,16 @@ if(UUID == UserUUID){
       UserRssi = rssi;
     }
     ledBlink(15);
-    Serial.println("");
-    Serial.println("before convert");
-    Serial.println(prvRssi);
-    Serial.println(prvDevID);
+//    Serial.println("");
+//    Serial.println("before convert");
+//    Serial.println(prvRssi);
+//    Serial.println(prvDevID);
     prvMacStr[18] = macStr[18];
     prvRssi = rssi;
     prvDevID = devID;
-    Serial.println("after convert");
-    Serial.println(prvRssi);
-    Serial.println(prvDevID);
+//    Serial.println("after convert");
+//    Serial.println(prvRssi);
+//    Serial.println(prvDevID);
     jsonData.clear();
     }
   }
@@ -404,7 +410,6 @@ String sendData(){
   rowData["CurrLocation"] = UserDesti;
   rowData["Rssi"] = UserRssi;
   serializeJson(rowData, serverData);
-  Serial.println(serverData);
   return serverData;
 }
 
